@@ -17,3 +17,9 @@ export function parseRoute(hash: string): Route {
 export function routeHash(route: Route): string {
   return `#/${route}`;
 }
+
+/** The segment after the route name, e.g. "2026-11-25" in "#/today/2026-11-25". */
+export function parseRouteParam(hash: string): string | null {
+  const param = hash.replace(/^#\/?/, '').split('?')[0].split('/')[1];
+  return param ? decodeURIComponent(param) : null;
+}
