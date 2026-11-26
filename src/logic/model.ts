@@ -97,6 +97,8 @@ export interface Project {
   status: ProjectStatus;
   milestones: Milestone[];
   createdAt: string;
+  /** ISO timestamp of the last change to this project; on sync conflict the latest wins. */
+  updatedAt: string;
 }
 
 export interface WeeklyGoal {
@@ -105,6 +107,8 @@ export interface WeeklyGoal {
   weekStart: DateKey;
   text: string;
   done: boolean;
+  /** ISO timestamp of the last change to this goal. */
+  updatedAt: string;
 }
 
 export const MAX_WEEKLY_GOALS = 3;

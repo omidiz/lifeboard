@@ -8,7 +8,8 @@
  */
 import { emptyDay } from '../logic/day';
 import { ticksByHabit } from '../logic/habits';
-import type { CheckIn, DateKey, DayRecord, HabitsFile, ProjectsFile } from '../logic/model';
+import type { CheckIn, DateKey, DayRecord, FocusSession, HabitsFile, ProjectsFile } from '../logic/model';
+import { normalizeProjectsFile } from '../logic/projects';
 
 const DB_NAME = 'lifeboard';
 const DB_VERSION = 1;
@@ -147,6 +148,13 @@ export async function getAllHabitTicks(): Promise<Map<string, Set<DateKey>>> {
   return ticksByHabit(days.map((d) => ({ date: d.date!, habitTicks: d.habitTicks ?? [] })));
 }
 
+/** Every focus session ever logged, across all days. */
+export async function getAllFocusSessions(): Promise<FocusSession[]> {
+  const db = await openDb();
+  const days = await requestResult<Partial<DayRecord>[]>(db.transaction(DAYS).objectStore(DAYS).getAll());
+  return days.flatMap((d) => d.focusSessions ?? []);
+}
+
 // ---- Habits & projects ----
 
 async function getFile<T>(key: FileKey): Promise<T | undefined> {
@@ -170,27 +178,35 @@ export function putHabits(file: HabitsFile): Promise<void> {
   return putFile('habits', file);
 }
 
-/** Reads, changes and writes habits.json in a single transaction. */
-export async function updateHabits(change: (file: HabitsFile) => HabitsFile): Promise<HabitsFile> {
+/** Reads, changes and writes one shared file in a single transaction. */
+async function updateFile<T>(key: FileKey, normalize: (raw: T | undefined) => T, change: (file: T) => T): Promise<T> {
   const db = await openDb();
   const tx = db.transaction(FILES, 'readwrite');
   const store = tx.objectStore(FILES);
-  let result: HabitsFile | undefined;
-  const get = store.get('habits');
+  let result: T | undefined;
+  const get = store.get(key);
   get.onsuccess = () => {
-    const current: HabitsFile = { habits: [], updatedAt: nowIso(), ...(get.result as HabitsFile | undefined) };
-    result = change(current);
-    store.put(result, 'habits');
+    result = change(normalize(get.result as T | undefined));
+    store.put(result, key);
   };
   await transactionDone(tx);
   return result!;
 }
 
+/** Reads, changes and writes habits.json in a single transaction. */
+export function updateHabits(change: (file: HabitsFile) => HabitsFile): Promise<HabitsFile> {
+  return updateFile<HabitsFile>('habits', (raw) => ({ habits: [], updatedAt: nowIso(), ...raw }), change);
+}
+
 export async function getProjects(): Promise<ProjectsFile> {
-  const file = await getFile<ProjectsFile>('projects');
-  return { projects: [], weeklyGoals: [], updatedAt: nowIso(), ...file };
+  return normalizeProjectsFile(await getFile<ProjectsFile>('projects'), nowIso());
 }
 
 export function putProjects(file: ProjectsFile): Promise<void> {
   return putFile('projects', file);
+}
+
+/** Reads, changes and writes projects.json in a single transaction. */
+export function updateProjects(change: (file: ProjectsFile) => ProjectsFile): Promise<ProjectsFile> {
+  return updateFile<ProjectsFile>('projects', (raw) => normalizeProjectsFile(raw, nowIso()), change);
 }

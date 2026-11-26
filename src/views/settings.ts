@@ -1,4 +1,4 @@
-import { getHabits, updateHabits } from '../data/db';
+import { getHabits, getProjects, updateHabits } from '../data/db';
 import { todayKey } from '../logic/dates';
 import {
   createHabit,
@@ -11,6 +11,7 @@ import {
   type HabitPatch,
 } from '../logic/habits';
 import type { Habit, HabitsFile } from '../logic/model';
+import { routeHash } from '../logic/routes';
 import { escapeHtml } from './html';
 import type { View } from './view';
 
@@ -41,6 +42,13 @@ export function createSettingsView(): View {
         <button type="submit" class="primary">Add</button>
       </form>
     </section>
+    <a class="card nav-card" href="${routeHash('projects')}">
+      <span class="nav-card-text">
+        <span class="nav-card-title">Projects</span>
+        <span class="card-sub" data-projects-summary>Milestones, colors and focus time</span>
+      </span>
+      <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </a>
     <section class="card placeholder">
       <p>GitHub sync, export and import will be set up here.</p>
     </section>
@@ -228,6 +236,15 @@ export function createSettingsView(): View {
   document.addEventListener('visibilitychange', onHide);
 
   // ---- Load ----
+  getProjects()
+    .then((file) => {
+      if (destroyed || file.projects.length === 0) return;
+      const active = file.projects.filter((p) => p.status === 'active').length;
+      el.querySelector('[data-projects-summary]')!.textContent =
+        `${active} active · ${file.projects.length} in total`;
+    })
+    .catch(() => {});
+
   getHabits()
     .then((file) => {
       if (destroyed) return;

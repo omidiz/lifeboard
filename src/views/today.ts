@@ -1,5 +1,13 @@
-import { findLatestCheckInBefore, getAllHabitTicks, getDay, getHabits, updateDay } from '../data/db';
-import { addDays, isDateKey, relativeDayLabel, formatShortDate, todayKey } from '../logic/dates';
+import {
+  findLatestCheckInBefore,
+  getAllHabitTicks,
+  getDay,
+  getHabits,
+  getProjects,
+  updateDay,
+  updateProjects,
+} from '../data/db';
+import { addDays, isDateKey, relativeDayLabel, formatShortDate, startOfWeek, todayKey } from '../logic/dates';
 import {
   applyCheckIn,
   applyNote,
@@ -12,7 +20,23 @@ import {
 } from '../logic/day';
 import { totalFocusMinutes } from '../logic/focus';
 import { habitStatus } from '../logic/habits';
-import { RATINGS, type DateKey, type DayRecord, type Habit, type Rating } from '../logic/model';
+import {
+  MAX_WEEKLY_GOALS,
+  RATINGS,
+  type DateKey,
+  type DayRecord,
+  type Habit,
+  type ProjectsFile,
+  type Rating,
+} from '../logic/model';
+import {
+  addWeeklyGoal,
+  canAddGoal,
+  GOAL_MAX_LENGTH,
+  goalsForWeek,
+  removeWeeklyGoal,
+  toggleWeeklyGoal,
+} from '../logic/projects';
 import { routeHash } from '../logic/routes';
 import {
   formatDuration,
@@ -35,6 +59,10 @@ const RATING_QUESTIONS: { field: RatingField; label: string; low: string; high: 
 ];
 
 const NOTE_SAVE_DELAY_MS = 400;
+const REMOVE_CONFIRM_MS = 3000;
+
+const CHECK_SVG = `<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
+const REMOVE_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
 
 export function dayHash(date: DateKey, today: DateKey): string {
   return date === today ? routeHash('today') : `${routeHash('today')}/${date}`;
@@ -72,6 +100,10 @@ export function createTodayView(dateParam: string | null): View {
   let defaults: CheckInDefaults = checkInDefaults(null);
   let habits: Habit[] = [];
   let ticks = new Map<string, Set<DateKey>>();
+  let projectsFile: ProjectsFile = { projects: [], weeklyGoals: [], updatedAt: new Date().toISOString() };
+  let projectWrites: Promise<unknown> = Promise.resolve();
+  const weekStart = startOfWeek(date);
+  const isCurrentWeek = weekStart === startOfWeek(today);
   let destroyed = false;
   let writes: Promise<unknown> = Promise.resolve();
   let noteTimer: number | undefined;
@@ -104,6 +136,21 @@ export function createTodayView(dateParam: string | null): View {
       );
   }
 
+  /** Same as save(), for projects.json (weekly goals). */
+  function saveProjects(change: (f: ProjectsFile) => ProjectsFile): void {
+    projectsFile = change(projectsFile);
+    renderGoals();
+    projectWrites = projectWrites
+      .then(() => updateProjects(change))
+      .then(
+        () => showStatus('Saved'),
+        (error: unknown) => {
+          console.error('Saving goals failed', error);
+          showStatus('Couldn’t save on this device. Your last change may be lost.', true);
+        },
+      );
+  }
+
   const nowIso = () => new Date().toISOString();
   const saveCheckIn = (patch: CheckInPatch) => save((d) => applyCheckIn(d, patch, defaults, nowIso()));
 
@@ -117,6 +164,19 @@ export function createTodayView(dateParam: string | null): View {
 
   // ---- Markup ----
   body.innerHTML = `
+    <section class="card goals" aria-labelledby="goals-title">
+      <div class="card-head">
+        <h2 id="goals-title">${isCurrentWeek ? 'This week' : `Week of ${formatShortDate(weekStart, today)}`}</h2>
+        <a class="card-link" href="${routeHash('projects')}">Projects</a>
+      </div>
+      <ul class="goal-list" data-goal-list></ul>
+      <form class="add-row" data-add-goal hidden>
+        <label class="visually-hidden" for="new-goal">New goal for this week</label>
+        <input id="new-goal" name="goal" maxlength="${GOAL_MAX_LENGTH}" autocomplete="off" enterkeyhint="done"
+          placeholder="What matters most this week?" />
+        <button type="submit" class="step">Add</button>
+      </form>
+    </section>
     <section class="card" aria-labelledby="sleep-title">
       <div class="card-head">
         <h2 id="sleep-title">Sleep</h2>
@@ -175,6 +235,37 @@ export function createTodayView(dateParam: string | null): View {
   const hint = body.querySelector<HTMLElement>('[data-hint]')!;
   const ratingButtons = body.querySelectorAll<HTMLButtonElement>('[data-rating]');
   const habitList = body.querySelector<HTMLElement>('[data-habit-list]')!;
+  const goalList = body.querySelector<HTMLElement>('[data-goal-list]')!;
+  const goalForm = body.querySelector<HTMLFormElement>('[data-add-goal]')!;
+  const removeTimers = new Set<number>();
+
+  /** Up to 3 goals for the shown week; new ones can only be added to the current week. */
+  function renderGoals(): void {
+    const goals = goalsForWeek(projectsFile, weekStart);
+    const left = MAX_WEEKLY_GOALS - goals.length;
+    goalList.innerHTML =
+      goals
+        .map(
+          (g) => `
+        <li class="goal" data-goal-id="${escapeHtml(g.id)}">
+          <button type="button" class="goal-toggle" data-toggle-goal aria-pressed="${g.done}">
+            <span class="habit-check" aria-hidden="true">${CHECK_SVG}</span>
+            <span class="goal-text">${escapeHtml(g.text)}</span>
+          </button>
+          <button type="button" class="icon-button goal-remove" data-remove-goal aria-label="Remove goal: ${escapeHtml(g.text)}">
+            ${REMOVE_SVG}
+          </button>
+        </li>`,
+        )
+        .join('') +
+      (goals.length === 0
+        ? `<li class="empty">${isCurrentWeek ? `Pick up to ${MAX_WEEKLY_GOALS} things that would make this week a good one.` : 'No goals that week.'}</li>`
+        : '');
+    const canAdd = isCurrentWeek && canAddGoal(projectsFile, weekStart);
+    goalForm.hidden = !canAdd;
+    goalForm.querySelector('input')!.placeholder =
+      goals.length === 0 ? 'What matters most this week?' : `Add a goal (${left} left)`;
+  }
   const focusTotal = body.querySelector<HTMLElement>('[data-focus-total]')!;
   const focusMeta = body.querySelector<HTMLElement>('[data-focus-meta]')!;
 
@@ -278,6 +369,33 @@ export function createTodayView(dateParam: string | null): View {
   // ---- Events ----
   body.addEventListener('click', (event) => {
     const target = event.target as HTMLElement;
+    const goalRow = target.closest<HTMLElement>('[data-goal-id]');
+    if (goalRow) {
+      const id = goalRow.dataset.goalId!;
+      if (target.closest('[data-toggle-goal]')) {
+        saveProjects((f) => toggleWeeklyGoal(f, id, nowIso()));
+        goalList.querySelector<HTMLElement>(`[data-goal-id="${CSS.escape(id)}"] [data-toggle-goal]`)?.focus();
+        return;
+      }
+      const remove = target.closest<HTMLButtonElement>('[data-remove-goal]');
+      if (remove) {
+        // Two taps, so a stray touch doesn't remove a goal.
+        if (!remove.classList.contains('armed')) {
+          const label = remove.getAttribute('aria-label')!;
+          remove.classList.add('armed');
+          remove.setAttribute('aria-label', 'Tap again to remove');
+          const t = window.setTimeout(() => {
+            remove.classList.remove('armed');
+            remove.setAttribute('aria-label', label);
+            removeTimers.delete(t);
+          }, REMOVE_CONFIRM_MS);
+          removeTimers.add(t);
+          return;
+        }
+        saveProjects((f) => removeWeeklyGoal(f, id, nowIso()));
+      }
+      return;
+    }
     const step = target.closest<HTMLButtonElement>('[data-step]');
     if (step) {
       const field = step.dataset.field as TimeField;
@@ -317,6 +435,17 @@ export function createTodayView(dateParam: string | null): View {
     input.addEventListener('blur', () => update());
   }
 
+  goalForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const input = goalForm.querySelector<HTMLInputElement>('input')!;
+    const text = input.value.trim();
+    if (!text) return;
+    const id = crypto.randomUUID();
+    saveProjects((f) => addWeeklyGoal(f, text, id, weekStart, nowIso()));
+    input.value = '';
+    if (!goalForm.hidden) input.focus();
+  });
+
   noteInput.addEventListener('input', () => {
     window.clearTimeout(noteTimer);
     noteTimer = window.setTimeout(flushNote, NOTE_SAVE_DELAY_MS);
@@ -348,9 +477,11 @@ export function createTodayView(dateParam: string | null): View {
   });
 
   // ---- Load ----
-  Promise.all([getDay(date), findLatestCheckInBefore(date), getHabits(), getAllHabitTicks()])
-    .then(([stored, previous, habitsFile, allTicks]) => {
+  Promise.all([getDay(date), findLatestCheckInBefore(date), getHabits(), getAllHabitTicks(), getProjects()])
+    .then(([stored, previous, habitsFile, allTicks, projects]) => {
       if (destroyed) return;
+      projectsFile = projects;
+      renderGoals();
       if (stored) day = stored;
       habits = habitsFile.habits;
       ticks = allTicks;
@@ -363,6 +494,7 @@ export function createTodayView(dateParam: string | null): View {
     .catch((error: unknown) => {
       console.error('Loading failed', error);
       if (destroyed) return;
+      renderGoals();
       renderHabits();
       update();
       body.removeAttribute('aria-busy');
@@ -381,6 +513,7 @@ export function createTodayView(dateParam: string | null): View {
       window.removeEventListener('pagehide', flushNote);
       unsubscribeTimer();
       unsubscribeSaved();
+      removeTimers.forEach((t) => window.clearTimeout(t));
     },
   };
 }
