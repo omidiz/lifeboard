@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_ROUTE, parseRoute, routeHash, ROUTES } from './routes';
+import { DEFAULT_ROUTE, parseRoute, parseRouteParam, routeHash, ROUTES } from './routes';
 
 describe('parseRoute', () => {
   it('parses each known route', () => {
@@ -22,5 +22,18 @@ describe('parseRoute', () => {
     expect(parseRoute('')).toBe(DEFAULT_ROUTE);
     expect(parseRoute('#/')).toBe(DEFAULT_ROUTE);
     expect(parseRoute('#/nope')).toBe(DEFAULT_ROUTE);
+  });
+});
+
+describe('parseRouteParam', () => {
+  it('returns the segment after the route', () => {
+    expect(parseRouteParam('#/today/2026-11-25')).toBe('2026-11-25');
+    expect(parseRouteParam('#/today/2026-11-25?x=1')).toBe('2026-11-25');
+  });
+
+  it('returns null when there is none', () => {
+    expect(parseRouteParam('#/today')).toBeNull();
+    expect(parseRouteParam('#/today/')).toBeNull();
+    expect(parseRouteParam('')).toBeNull();
   });
 });

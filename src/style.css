@@ -160,3 +160,280 @@ body {
     transition: none !important;
   }
 }
+
+/* ---------- Shared controls ---------- */
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+:where(button, input, a):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.icon-button svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+a.icon-button:hover {
+  background: var(--accent-soft);
+}
+
+/* ---------- Today ---------- */
+:root {
+  --surface-2: #f1eee7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-2: #272b2e;
+  }
+}
+
+.date-nav {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.date-title {
+  text-align: center;
+}
+
+.date-title h1 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.date-title p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.date-title a {
+  color: var(--accent);
+}
+
+.today-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: opacity 0.15s ease;
+}
+
+.today-body[aria-busy='true'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.card-head,
+.rating-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.card h2,
+.card h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.sleep-total {
+  color: var(--accent);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.time-row label {
+  flex-shrink: 0;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.stepper {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.step {
+  min-width: 44px;
+  height: 44px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface-2);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.step:active {
+  background: var(--accent-soft);
+}
+
+.stepper input[type='time'] {
+  width: 6.2em;
+  height: 44px;
+  padding: 0 2px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.stepper input[type='time']::-webkit-calendar-picker-indicator {
+  display: none;
+}
+
+.is-suggested .stepper input[type='time'],
+.is-suggested .sleep-total {
+  color: var(--muted);
+}
+
+@media (max-width: 374px) {
+  .time-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .stepper input[type='time'] {
+    flex: 1;
+  }
+}
+
+.hint {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.ratings {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.rating-scale {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.rating-options {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.rating-options button {
+  height: 52px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-2);
+  font-size: 1.1rem;
+  font-weight: 600;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    transform 0.08s ease;
+}
+
+.rating-options button:active {
+  transform: scale(0.96);
+}
+
+.rating-options button[aria-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.note {
+  padding: 4px 6px;
+}
+
+.note input {
+  width: 100%;
+  height: 48px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  font-size: 1rem;
+}
+
+.note input::placeholder {
+  color: var(--muted);
+}
+
+.save-status {
+  min-height: 1.5em;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.save-status.visible {
+  opacity: 1;
+}
+
+.save-status.error {
+  color: #b5533c;
+}

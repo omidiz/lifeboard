@@ -1,6 +1,9 @@
 import './style.css';
-import { parseRoute, routeHash, ROUTES, type Route } from './logic/routes';
+import { todayKey } from './logic/dates';
+import { parseRoute, parseRouteParam, routeHash, ROUTES, type Route } from './logic/routes';
 import { renderPlaceholder, VIEWS } from './views/placeholders';
+import { createTodayView } from './views/today';
+import type { View } from './views/view';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -20,15 +23,38 @@ app.innerHTML = `
 const viewEl = app.querySelector<HTMLElement>('#view')!;
 const tabs = app.querySelectorAll<HTMLAnchorElement>('.tab');
 
-function show(route: Route): void {
-  viewEl.replaceChildren(renderPlaceholder(route));
+let current: View | null = null;
+let currentRoute: Route | null = null;
+let renderedOn = todayKey();
+
+function createView(route: Route, param: string | null): View {
+  if (route === 'today') return createTodayView(param);
+  return { el: renderPlaceholder(route) };
+}
+
+function show(): void {
+  const route = parseRoute(location.hash);
+  const param = parseRouteParam(location.hash);
+
+  current?.destroy?.();
+  current = createView(route, param);
+  viewEl.replaceChildren(current.el);
+  renderedOn = todayKey();
+
   document.title = `${VIEWS[route].title} · Lifeboard`;
   tabs.forEach((tab) => {
     if (tab.dataset.route === route) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
   });
-  window.scrollTo(0, 0);
+  if (route !== currentRoute) window.scrollTo(0, 0);
+  currentRoute = route;
 }
 
-window.addEventListener('hashchange', () => show(parseRoute(location.hash)));
-show(parseRoute(location.hash));
+window.addEventListener('hashchange', show);
+
+// Coming back to the app after midnight: refresh so "Today" means today.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && todayKey() !== renderedOn) show();
+});
+
+show();
