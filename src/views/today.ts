@@ -1,4 +1,4 @@
-import { findLatestCheckInBefore, getDay, updateDay } from '../data/db';
+import { findLatestCheckInBefore, getAllHabitTicks, getDay, getHabits, updateDay } from '../data/db';
 import { addDays, isDateKey, relativeDayLabel, formatShortDate, todayKey } from '../logic/dates';
 import {
   applyCheckIn,
@@ -6,10 +6,12 @@ import {
   checkInDefaults,
   emptyDay,
   NOTE_MAX_LENGTH,
+  toggleHabitTick,
   type CheckInDefaults,
   type CheckInPatch,
 } from '../logic/day';
-import { RATINGS, type DateKey, type DayRecord, type Rating } from '../logic/model';
+import { habitStatus } from '../logic/habits';
+import { RATINGS, type DateKey, type DayRecord, type Habit, type Rating } from '../logic/model';
 import { routeHash } from '../logic/routes';
 import {
   formatDuration,
@@ -18,6 +20,7 @@ import {
   sleepDurationMinutes,
   TIME_STEP_MINUTES,
 } from '../logic/sleep';
+import { escapeHtml } from './html';
 import type { View } from './view';
 
 type TimeField = 'bedtime' | 'wakeTime';
@@ -65,6 +68,8 @@ export function createTodayView(dateParam: string | null): View {
 
   let day: DayRecord = emptyDay(date, new Date().toISOString());
   let defaults: CheckInDefaults = checkInDefaults(null);
+  let habits: Habit[] = [];
+  let ticks = new Map<string, Set<DateKey>>();
   let destroyed = false;
   let writes: Promise<unknown> = Promise.resolve();
   let noteTimer: number | undefined;
@@ -137,6 +142,13 @@ export function createTodayView(dateParam: string | null): View {
         </div>`,
       ).join('')}
     </section>
+    <section class="card habits" aria-labelledby="habits-title">
+      <div class="card-head">
+        <h2 id="habits-title">Habits</h2>
+        <a class="card-link" href="${routeHash('settings')}">Edit</a>
+      </div>
+      <div class="habit-list" data-habit-list></div>
+    </section>
     <section class="card note">
       <label for="day-note" class="visually-hidden">Note for the day</label>
       <input id="day-note" type="text" maxlength="${NOTE_MAX_LENGTH}" autocomplete="off" enterkeyhint="done"
@@ -153,6 +165,54 @@ export function createTodayView(dateParam: string | null): View {
   const sleepTotal = body.querySelector<HTMLElement>('[data-sleep-total]')!;
   const hint = body.querySelector<HTMLElement>('[data-hint]')!;
   const ratingButtons = body.querySelectorAll<HTMLButtonElement>('[data-rating]');
+  const habitList = body.querySelector<HTMLElement>('[data-habit-list]')!;
+
+  /** Builds the habit buttons; called when the habit list changes. */
+  function renderHabits(): void {
+    if (habits.length === 0) {
+      habitList.innerHTML = `<p class="empty">No habits yet. <a href="${routeHash('settings')}">Add one in Settings</a>.</p>`;
+      return;
+    }
+    habitList.innerHTML = habits
+      .map(
+        (h) => `
+        <button type="button" class="habit" data-habit-id="${escapeHtml(h.id)}" aria-pressed="false">
+          <span class="habit-emoji" aria-hidden="true">${escapeHtml(h.emoji)}</span>
+          <span class="habit-text">
+            <span class="habit-name">${escapeHtml(h.name)}</span>
+            <span class="habit-meta" data-habit-meta></span>
+          </span>
+          <span class="habit-check" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+          </span>
+        </button>`,
+      )
+      .join('');
+    updateHabits();
+  }
+
+  /** Refreshes ticked state, weekly progress and streaks (as of the shown date). */
+  function updateHabits(): void {
+    habitList.querySelectorAll<HTMLButtonElement>('[data-habit-id]').forEach((button) => {
+      const habit = habits.find((h) => h.id === button.dataset.habitId);
+      if (!habit) return;
+      const ticked = day.habitTicks.includes(habit.id);
+      const status = habitStatus(habit, ticks.get(habit.id) ?? new Set(), date);
+      button.setAttribute('aria-pressed', String(ticked));
+      button.classList.toggle('week-met', status.met);
+      const parts = [`${status.done}/${status.target} this week`];
+      if (status.streak > 0) parts.push(`${status.streak}-week streak`);
+      button.querySelector('[data-habit-meta]')!.textContent = parts.join(' · ');
+    });
+  }
+
+  function toggleHabit(id: string): void {
+    const set = ticks.get(id) ?? new Set<DateKey>();
+    ticks.set(id, set);
+    if (day.habitTicks.includes(id)) set.delete(date);
+    else set.add(date);
+    save((d) => toggleHabitTick(d, id, nowIso()));
+  }
 
   function currentTimes() {
     return {
@@ -187,6 +247,7 @@ export function createTodayView(dateParam: string | null): View {
       const active = group.find((b) => b.getAttribute('aria-checked') === 'true') ?? group[0];
       group.forEach((b) => (b.tabIndex = b === active ? 0 : -1));
     }
+    updateHabits();
   }
 
   // ---- Events ----
@@ -197,6 +258,11 @@ export function createTodayView(dateParam: string | null): View {
       const field = step.dataset.field as TimeField;
       const delta = Number(step.dataset.step);
       saveCheckIn({ [field]: shiftTime(currentTimes()[field], delta) });
+      return;
+    }
+    const habitButton = target.closest<HTMLButtonElement>('[data-habit-id]');
+    if (habitButton) {
+      toggleHabit(habitButton.dataset.habitId!);
       return;
     }
     const rating = target.closest<HTMLButtonElement>('[data-rating]');
@@ -242,10 +308,13 @@ export function createTodayView(dateParam: string | null): View {
   window.addEventListener('pagehide', flushNote);
 
   // ---- Load ----
-  Promise.all([getDay(date), findLatestCheckInBefore(date)])
-    .then(([stored, previous]) => {
+  Promise.all([getDay(date), findLatestCheckInBefore(date), getHabits(), getAllHabitTicks()])
+    .then(([stored, previous, habitsFile, allTicks]) => {
       if (destroyed) return;
       if (stored) day = stored;
+      habits = habitsFile.habits;
+      ticks = allTicks;
+      renderHabits();
       defaults = checkInDefaults(previous);
       noteInput.value = day.note;
       update();
@@ -254,6 +323,7 @@ export function createTodayView(dateParam: string | null): View {
     .catch((error: unknown) => {
       console.error('Loading failed', error);
       if (destroyed) return;
+      renderHabits();
       update();
       body.removeAttribute('aria-busy');
       showStatus('Couldn’t open local storage. Changes won’t be kept.', true);

@@ -7,6 +7,7 @@
  *   files — the shared files, keyed "habits" and "projects"
  */
 import { emptyDay } from '../logic/day';
+import { ticksByHabit } from '../logic/habits';
 import type { CheckIn, DateKey, DayRecord, HabitsFile, ProjectsFile } from '../logic/model';
 
 const DB_NAME = 'lifeboard';
@@ -139,6 +140,13 @@ export async function getDaysInRange(from: DateKey, to: DateKey): Promise<DayRec
   return raws.map((raw) => normalizeDay(raw, raw.date!));
 }
 
+/** Every date each habit was ticked on, by habit id. */
+export async function getAllHabitTicks(): Promise<Map<string, Set<DateKey>>> {
+  const db = await openDb();
+  const days = await requestResult<Partial<DayRecord>[]>(db.transaction(DAYS).objectStore(DAYS).getAll());
+  return ticksByHabit(days.map((d) => ({ date: d.date!, habitTicks: d.habitTicks ?? [] })));
+}
+
 // ---- Habits & projects ----
 
 async function getFile<T>(key: FileKey): Promise<T | undefined> {
@@ -160,6 +168,22 @@ export async function getHabits(): Promise<HabitsFile> {
 
 export function putHabits(file: HabitsFile): Promise<void> {
   return putFile('habits', file);
+}
+
+/** Reads, changes and writes habits.json in a single transaction. */
+export async function updateHabits(change: (file: HabitsFile) => HabitsFile): Promise<HabitsFile> {
+  const db = await openDb();
+  const tx = db.transaction(FILES, 'readwrite');
+  const store = tx.objectStore(FILES);
+  let result: HabitsFile | undefined;
+  const get = store.get('habits');
+  get.onsuccess = () => {
+    const current: HabitsFile = { habits: [], updatedAt: nowIso(), ...(get.result as HabitsFile | undefined) };
+    result = change(current);
+    store.put(result, 'habits');
+  };
+  await transactionDone(tx);
+  return result!;
 }
 
 export async function getProjects(): Promise<ProjectsFile> {

@@ -437,3 +437,247 @@ a.icon-button:hover {
 .save-status.error {
   color: #b5533c;
 }
+
+.card-link {
+  color: var(--accent);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.card-sub {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.empty {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  list-style: none;
+}
+
+.empty a {
+  color: var(--accent);
+}
+
+/* ---------- Habit toggles (Today) ---------- */
+.habit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.habit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-2);
+  text-align: left;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.08s ease;
+}
+
+.habit:active {
+  transform: scale(0.98);
+}
+
+.habit-emoji {
+  flex-shrink: 0;
+  width: 32px;
+  font-size: 1.6rem;
+  line-height: 1;
+  text-align: center;
+}
+
+.habit-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.habit-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.habit-meta {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.habit.week-met .habit-meta {
+  color: var(--accent);
+}
+
+.habit-check {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  color: transparent;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.habit-check svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.habit[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.habit[aria-pressed='true'] .habit-check {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--surface);
+}
+
+/* ---------- Habit editor (Settings) ---------- */
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings .view-header h1 {
+  margin-bottom: 8px;
+}
+
+.habit-editors {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.habit-editor {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+
+.emoji-input,
+.name-input {
+  min-width: 0;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.emoji-input {
+  width: 52px;
+  padding: 0;
+  font-size: 1.4rem;
+  text-align: center;
+}
+
+.name-input {
+  width: 100%;
+  padding: 0 12px;
+  font-size: 1rem;
+}
+
+.target-row {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-left: 4px;
+}
+
+.target-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.habit-editor .step {
+  min-width: 48px;
+  background: var(--surface);
+  font-size: 1.2rem;
+}
+
+.step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.delete {
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.delete-confirm {
+  display: none;
+}
+
+.delete.armed {
+  width: auto;
+  padding: 0 10px;
+  border-radius: 12px;
+  background: #b5533c;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.delete.armed svg {
+  display: none;
+}
+
+.delete.armed .delete-confirm {
+  display: inline;
+}
+
+.add-habit {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.primary {
+  height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--surface);
+  font-weight: 600;
+}

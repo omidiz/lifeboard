@@ -2,6 +2,7 @@ import './style.css';
 import { todayKey } from './logic/dates';
 import { parseRoute, parseRouteParam, routeHash, ROUTES, type Route } from './logic/routes';
 import { renderPlaceholder, VIEWS } from './views/placeholders';
+import { createSettingsView } from './views/settings';
 import { createTodayView } from './views/today';
 import type { View } from './views/view';
 
@@ -29,6 +30,7 @@ let renderedOn = todayKey();
 
 function createView(route: Route, param: string | null): View {
   if (route === 'today') return createTodayView(param);
+  if (route === 'settings') return createSettingsView();
   return { el: renderPlaceholder(route) };
 }
 
