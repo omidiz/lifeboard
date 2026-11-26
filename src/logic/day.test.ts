@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyCheckIn, applyNote, checkInDefaults, emptyDay, NOTE_MAX_LENGTH, toggleHabitTick } from './day';
+import { applyCheckIn, applyNote, checkInDefaults, emptyDay, normalizeDay, NOTE_MAX_LENGTH, toggleHabitTick } from './day';
 import type { CheckIn } from './model';
 
 const T0 = '2026-11-26T07:00:00.000Z';
@@ -71,5 +71,41 @@ describe('toggleHabitTick', () => {
     expect(ticked.habitTicks).toEqual(['a']);
     expect(toggleHabitTick(ticked, 'a', T1).habitTicks).toEqual([]);
     expect(day.habitTicks).toEqual([]); // not mutated
+  });
+});
+
+describe('normalizeDay', () => {
+  it('fills in a day written by an older version', () => {
+    expect(normalizeDay({ date: '2026-11-26', habitTicks: ['a'] }, '2026-11-26', T0)).toEqual({
+      ...emptyDay('2026-11-26', T0),
+      habitTicks: ['a'],
+    });
+  });
+
+  it('drops malformed entries from another device instead of breaking', () => {
+    const day = normalizeDay(
+      {
+        date: '1999-01-01',
+        checkIn: { bedtime: '25:00', wakeTime: '06:30', sleepQuality: 9, energy: 3, mood: '4', updatedAt: T1 },
+        habitTicks: ['a', 'a', 3, null],
+        focusSessions: [
+          { id: 's', start: T0, end: T1, minutes: 1, projectId: null, tag: null },
+          { id: 's', start: T0, end: T1, minutes: 2 },
+          { start: T0 },
+          'junk',
+        ],
+        note: 'line one\nline two',
+        noteUpdatedAt: 42,
+      },
+      '2026-11-26',
+      T0,
+    );
+    expect(day.date).toBe('2026-11-26');
+    expect(day.checkIn).toEqual({ bedtime: '23:00', wakeTime: '06:30', sleepQuality: null, energy: 3, mood: null, updatedAt: T1 });
+    expect(day.habitTicks).toEqual(['a']);
+    expect(day.focusSessions).toHaveLength(1);
+    expect(day.note).toBe('line one line two');
+    expect(day.noteUpdatedAt).toBeNull();
+    expect(normalizeDay('nonsense', '2026-11-26', T0)).toEqual(emptyDay('2026-11-26', T0));
   });
 });

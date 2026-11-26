@@ -1,4 +1,6 @@
 /** Projects with milestones, and the (at most 3) weekly goals — together projects.json. */
+import { isDateKey } from './dates';
+import { isPlainObject, uniqueById } from './json';
 import {
   MAX_WEEKLY_GOALS,
   type DateKey,
@@ -171,17 +173,59 @@ export function removeProject(file: ProjectsFile, id: string, now: string): Proj
   return { ...file, projects: file.projects.filter((p) => p.id !== id), updatedAt: now };
 }
 
-/** Fills in fields missing from data written by older versions, and makes colors safe. */
-export function normalizeProjectsFile(raw: Partial<ProjectsFile> | undefined, now: string): ProjectsFile {
-  const projects = (raw?.projects ?? []).map((p) => ({
-    ...p,
-    name: typeof p.name === 'string' && p.name ? p.name : 'Project',
-    color: normalizeColor(p.color),
-    status: isProjectStatus(p.status) ? p.status : 'active',
-    milestones: Array.isArray(p.milestones) ? p.milestones : [],
-    createdAt: p.createdAt ?? now,
-    updatedAt: p.updatedAt ?? p.createdAt ?? now,
-  }));
-  const weeklyGoals = (raw?.weeklyGoals ?? []).map((g) => ({ ...g, updatedAt: g.updatedAt ?? now }));
-  return { projects, weeklyGoals, updatedAt: raw?.updatedAt ?? now };
+const str = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
+
+function normalizeMilestone(raw: unknown): Milestone | null {
+  if (!isPlainObject(raw) || !str(raw.id)) return null;
+  return { ...raw, id: raw.id, title: typeof raw.title === 'string' ? raw.title : '', done: raw.done === true };
+}
+
+function normalizeProject(raw: unknown, now: string): Project | null {
+  if (!isPlainObject(raw) || !str(raw.id)) return null;
+  const milestones = Array.isArray(raw.milestones)
+    ? raw.milestones.map(normalizeMilestone).filter((m): m is Milestone => m !== null)
+    : [];
+  const createdAt = str(raw.createdAt) ? raw.createdAt : now;
+  return {
+    ...raw,
+    id: raw.id,
+    name: str(raw.name) ? raw.name : 'Project',
+    color: normalizeColor(raw.color),
+    status: isProjectStatus(raw.status) ? raw.status : 'active',
+    milestones: uniqueById(milestones),
+    createdAt,
+    updatedAt: str(raw.updatedAt) ? raw.updatedAt : createdAt,
+  };
+}
+
+function normalizeGoal(raw: unknown, now: string): WeeklyGoal | null {
+  if (!isPlainObject(raw) || !str(raw.id) || !str(raw.weekStart) || !isDateKey(raw.weekStart)) return null;
+  return {
+    ...raw,
+    id: raw.id,
+    weekStart: raw.weekStart,
+    text: typeof raw.text === 'string' ? raw.text : '',
+    done: raw.done === true,
+    updatedAt: str(raw.updatedAt) ? raw.updatedAt : now,
+  };
+}
+
+/**
+ * A well-formed projects.json from stored or synced data: fills in fields
+ * missing from older versions, makes colors safe and drops malformed entries.
+ */
+export function normalizeProjectsFile(raw: unknown, now: string): ProjectsFile {
+  const r = isPlainObject(raw) ? raw : {};
+  const projects = Array.isArray(r.projects)
+    ? r.projects.map((p) => normalizeProject(p, now)).filter((p): p is Project => p !== null)
+    : [];
+  const weeklyGoals = Array.isArray(r.weeklyGoals)
+    ? r.weeklyGoals.map((g) => normalizeGoal(g, now)).filter((g): g is WeeklyGoal => g !== null)
+    : [];
+  return {
+    ...r,
+    projects: uniqueById(projects),
+    weeklyGoals: uniqueById(weeklyGoals),
+    updatedAt: str(r.updatedAt) ? r.updatedAt : now,
+  };
 }

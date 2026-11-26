@@ -1,5 +1,6 @@
-import { addDays, daysBetween, startOfWeek, weekdayIndex } from './dates';
-import type { DateKey, Habit, TargetChange } from './model';
+import { addDays, daysBetween, isDateKey, startOfWeek, weekdayIndex } from './dates';
+import { isPlainObject, uniqueById } from './json';
+import type { DateKey, Habit, HabitsFile, TargetChange } from './model';
 
 export const MIN_TARGET = 1;
 export const MAX_TARGET = 7;
@@ -180,4 +181,49 @@ export function ticksByHabit(days: Iterable<{ date: DateKey; habitTicks: readonl
     }
   }
   return map;
+}
+
+// ---------- Reading stored or synced data ----------
+
+/** Used only for a synced habit with no usable creation date. */
+const FALLBACK_CREATED_ON: DateKey = '2000-01-03';
+
+function normalizeHabit(raw: unknown, now: string): Habit | null {
+  if (!isPlainObject(raw) || typeof raw.id !== 'string' || !raw.id) return null;
+  const createdAt = typeof raw.createdAt === 'string' && raw.createdAt ? raw.createdAt : now;
+  const fromCreatedAt = createdAt.slice(0, 10);
+  const createdOn =
+    typeof raw.createdOn === 'string' && isDateKey(raw.createdOn)
+      ? raw.createdOn
+      : isDateKey(fromCreatedAt)
+        ? fromCreatedAt
+        : FALLBACK_CREATED_ON;
+  const target = clampTarget(typeof raw.targetPerWeek === 'number' ? raw.targetPerWeek : DEFAULT_TARGET);
+  const history = Array.isArray(raw.targetHistory)
+    ? raw.targetHistory
+        .filter((c): c is TargetChange => isPlainObject(c) && typeof c.weekStart === 'string' && isDateKey(c.weekStart))
+        .map((c) => ({ weekStart: c.weekStart, target: clampTarget(Number(c.target)) }))
+    : [];
+  return {
+    ...raw,
+    id: raw.id,
+    name: typeof raw.name === 'string' ? normalizeName(raw.name) || 'Habit' : 'Habit',
+    emoji: typeof raw.emoji === 'string' ? normalizeEmoji(raw.emoji) : DEFAULT_EMOJI,
+    targetPerWeek: target,
+    targetHistory: history.length > 0 ? history : [{ weekStart: startOfWeek(createdOn), target }],
+    createdOn,
+    createdAt,
+    updatedAt: typeof raw.updatedAt === 'string' && raw.updatedAt ? raw.updatedAt : createdAt,
+  };
+}
+
+/** A well-formed habits.json from stored or synced data; malformed habits are dropped. */
+export function normalizeHabitsFile(raw: unknown, now: string): HabitsFile {
+  const r = isPlainObject(raw) ? raw : {};
+  const habits = Array.isArray(r.habits) ? r.habits.map((h) => normalizeHabit(h, now)).filter((h): h is Habit => h !== null) : [];
+  return {
+    ...r,
+    habits: uniqueById(habits),
+    updatedAt: typeof r.updatedAt === 'string' && r.updatedAt ? r.updatedAt : now,
+  };
 }

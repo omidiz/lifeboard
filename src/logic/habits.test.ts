@@ -3,6 +3,7 @@ import {
   clampTarget,
   createHabit,
   habitStatus,
+  normalizeHabitsFile,
   normalizeEmoji,
   normalizeName,
   targetForWeek,
@@ -314,5 +315,31 @@ describe('ticksByHabit', () => {
     ]);
     expect(map.get('a')).toEqual(new Set(['2026-11-23', '2026-11-24']));
     expect(map.get('b')).toEqual(new Set(['2026-11-23']));
+  });
+});
+
+describe('normalizeHabitsFile', () => {
+  const NOW = '2026-11-26T08:00:00.000Z';
+
+  it('keeps well-formed habits as they are', () => {
+    const habit = createHabit({ name: 'Walk', emoji: '🚶', targetPerWeek: 4 }, 'h1', '2026-11-26', NOW);
+    expect(normalizeHabitsFile({ habits: [habit], updatedAt: NOW }, NOW)).toEqual({ habits: [habit], updatedAt: NOW });
+  });
+
+  it('repairs or drops malformed habits from another device', () => {
+    const file = normalizeHabitsFile(
+      { habits: [{ id: 'h', name: '', targetPerWeek: 12, createdAt: NOW }, { name: 'no id' }, 'junk', { id: 'h' }] },
+      NOW,
+    );
+    expect(file.habits).toHaveLength(1);
+    expect(file.habits[0]).toMatchObject({
+      id: 'h',
+      name: 'Habit',
+      emoji: '✨',
+      targetPerWeek: 7,
+      createdOn: '2026-11-26',
+      targetHistory: [{ weekStart: '2026-11-23', target: 7 }],
+    });
+    expect(normalizeHabitsFile(undefined, NOW)).toEqual({ habits: [], updatedAt: NOW });
   });
 });

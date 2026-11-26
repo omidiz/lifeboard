@@ -149,3 +149,21 @@ describe('normalizeProjectsFile', () => {
     expect(normalizeProjectsFile(undefined, NOW)).toEqual({ projects: [], weeklyGoals: [], updatedAt: NOW });
   });
 });
+
+describe('normalizeProjectsFile with synced data', () => {
+  it('drops malformed projects, milestones and goals', () => {
+    const file = normalizeProjectsFile(
+      {
+        projects: [
+          { id: 'p', name: 'A', milestones: [{ id: 'm', title: 'x', done: 'yes' }, { title: 'no id' }] },
+          { name: 'no id' },
+        ],
+        weeklyGoals: [{ id: 'g', weekStart: 'soon', text: 'x' }, { id: 'g2', weekStart: WEEK, text: 'ok', done: true }],
+      },
+      NOW,
+    );
+    expect(file.projects).toHaveLength(1);
+    expect(file.projects[0].milestones).toEqual([{ id: 'm', title: 'x', done: false }]);
+    expect(file.weeklyGoals.map((g) => g.id)).toEqual(['g2']);
+  });
+});
