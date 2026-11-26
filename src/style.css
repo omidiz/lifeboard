@@ -681,3 +681,269 @@ a.icon-button:hover {
   color: var(--surface);
   font-weight: 600;
 }
+
+/* ---------- Focus summary (Today) ---------- */
+.focus-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.focus-summary-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.focus-summary-label {
+  font-weight: 600;
+}
+
+.focus-summary-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.focus-summary-total {
+  color: var(--accent);
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Focus ---------- */
+.focus {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.focus .view-header h1 {
+  margin-bottom: 0;
+}
+
+.focus-dial {
+  position: relative;
+  width: min(78vw, 300px, 36dvh);
+  min-width: 200px;
+  aspect-ratio: 1;
+  margin: 4px auto 0;
+}
+
+.focus-dial svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ring-track,
+.ring-fill {
+  fill: none;
+  stroke-width: 6;
+}
+
+.ring-track {
+  stroke: var(--border);
+}
+
+.ring-fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.3s linear;
+}
+
+.focus-dial.is-paused .ring-fill {
+  opacity: 0.45;
+}
+
+.dial-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.dial-time {
+  font-size: clamp(2.75rem, min(15vw, 7dvh), 4.25rem);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-dial.is-paused .dial-time {
+  color: var(--muted);
+}
+
+.dial-sub {
+  max-width: 70%;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .focus-dial.is-running .ring-fill {
+    animation: breathe 6s ease-in-out infinite;
+  }
+}
+
+@keyframes breathe {
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.focus-setup,
+.focus-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.focus-setup[hidden],
+.focus-controls[hidden] {
+  display: none;
+}
+
+.mode-picker {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.mode-picker button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.mode-picker small {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.mode-picker button[aria-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.tag-picker h2 {
+  margin-bottom: 12px;
+}
+
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 40px;
+  padding: 0 14px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-chip[aria-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.tag-dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.new-label {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.new-label input {
+  min-width: 0;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.focus-start,
+.focus-big {
+  height: 56px;
+  border-radius: 16px;
+  font-size: 1.1rem;
+}
+
+.focus-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.secondary {
+  height: 48px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  font-weight: 600;
+}
+
+.focus-row .primary {
+  height: 48px;
+}
+
+.cancel {
+  color: var(--muted);
+}
+
+.cancel.armed {
+  border-color: #b5533c;
+  background: #b5533c;
+  color: #fff;
+}
+
+.focus-done {
+  margin: 0;
+  text-align: center;
+  font-size: 1.05rem;
+}
+
+.focus-today {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-align: center;
+}

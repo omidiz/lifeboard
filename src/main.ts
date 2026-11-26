@@ -1,7 +1,9 @@
 import './style.css';
+import { initFocusTimer } from './focus/timer';
 import { todayKey } from './logic/dates';
 import { parseRoute, parseRouteParam, routeHash, ROUTES, type Route } from './logic/routes';
 import { renderPlaceholder, VIEWS } from './views/placeholders';
+import { createFocusView } from './views/focus';
 import { createSettingsView } from './views/settings';
 import { createTodayView } from './views/today';
 import type { View } from './views/view';
@@ -30,6 +32,7 @@ let renderedOn = todayKey();
 
 function createView(route: Route, param: string | null): View {
   if (route === 'today') return createTodayView(param);
+  if (route === 'focus') return createFocusView();
   if (route === 'settings') return createSettingsView();
   return { el: renderPlaceholder(route) };
 }
@@ -51,6 +54,9 @@ function show(): void {
   if (route !== currentRoute) window.scrollTo(0, 0);
   currentRoute = route;
 }
+
+// Restore a timer left running before the page loads any screen.
+initFocusTimer();
 
 window.addEventListener('hashchange', show);
 

@@ -10,6 +10,7 @@ import {
   type CheckInDefaults,
   type CheckInPatch,
 } from '../logic/day';
+import { totalFocusMinutes } from '../logic/focus';
 import { habitStatus } from '../logic/habits';
 import { RATINGS, type DateKey, type DayRecord, type Habit, type Rating } from '../logic/model';
 import { routeHash } from '../logic/routes';
@@ -20,6 +21,7 @@ import {
   sleepDurationMinutes,
   TIME_STEP_MINUTES,
 } from '../logic/sleep';
+import { getTimer, onSessionSaved, subscribe as subscribeTimer } from '../focus/timer';
 import { escapeHtml } from './html';
 import type { View } from './view';
 
@@ -149,6 +151,13 @@ export function createTodayView(dateParam: string | null): View {
       </div>
       <div class="habit-list" data-habit-list></div>
     </section>
+    <a class="card focus-summary" href="${routeHash('focus')}">
+      <span class="focus-summary-text">
+        <span class="focus-summary-label">Focus</span>
+        <span class="focus-summary-meta" data-focus-meta></span>
+      </span>
+      <span class="focus-summary-total" data-focus-total></span>
+    </a>
     <section class="card note">
       <label for="day-note" class="visually-hidden">Note for the day</label>
       <input id="day-note" type="text" maxlength="${NOTE_MAX_LENGTH}" autocomplete="off" enterkeyhint="done"
@@ -166,6 +175,21 @@ export function createTodayView(dateParam: string | null): View {
   const hint = body.querySelector<HTMLElement>('[data-hint]')!;
   const ratingButtons = body.querySelectorAll<HTMLButtonElement>('[data-rating]');
   const habitList = body.querySelector<HTMLElement>('[data-habit-list]')!;
+  const focusTotal = body.querySelector<HTMLElement>('[data-focus-total]')!;
+  const focusMeta = body.querySelector<HTMLElement>('[data-focus-meta]')!;
+
+  /** Total of saved sessions for the shown day, plus a hint while a timer runs. */
+  function updateFocus(): void {
+    const sessions = day.focusSessions;
+    focusTotal.textContent = formatDuration(totalFocusMinutes(sessions));
+    const running = getTimer();
+    const parts: string[] = [];
+    if (sessions.length > 0) parts.push(`${sessions.length} session${sessions.length === 1 ? '' : 's'}`);
+    if (running && running.status !== 'finished' && date === today) {
+      parts.push(running.status === 'paused' ? 'Timer paused' : 'Timer running');
+    }
+    focusMeta.textContent = parts.length ? parts.join(' · ') : date === today ? 'Start a session' : 'No sessions';
+  }
 
   /** Builds the habit buttons; called when the habit list changes. */
   function renderHabits(): void {
@@ -248,6 +272,7 @@ export function createTodayView(dateParam: string | null): View {
       group.forEach((b) => (b.tabIndex = b === active ? 0 : -1));
     }
     updateHabits();
+    updateFocus();
   }
 
   // ---- Events ----
@@ -307,6 +332,21 @@ export function createTodayView(dateParam: string | null): View {
   document.addEventListener('visibilitychange', onHide);
   window.addEventListener('pagehide', flushNote);
 
+  // A focus session can finish (and save) while this screen is open.
+  const unsubscribeTimer = subscribeTimer(() => {
+    if (!destroyed) updateFocus();
+  });
+  const unsubscribeSaved = onSessionSaved((savedDate) => {
+    if (savedDate !== date) return;
+    getDay(date)
+      .then((stored) => {
+        if (destroyed || !stored) return;
+        day = { ...day, focusSessions: stored.focusSessions };
+        updateFocus();
+      })
+      .catch((error: unknown) => console.error('Reloading focus sessions failed', error));
+  });
+
   // ---- Load ----
   Promise.all([getDay(date), findLatestCheckInBefore(date), getHabits(), getAllHabitTicks()])
     .then(([stored, previous, habitsFile, allTicks]) => {
@@ -339,6 +379,8 @@ export function createTodayView(dateParam: string | null): View {
       window.clearTimeout(statusTimer);
       document.removeEventListener('visibilitychange', onHide);
       window.removeEventListener('pagehide', flushNote);
+      unsubscribeTimer();
+      unsubscribeSaved();
     },
   };
 }
