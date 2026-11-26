@@ -270,3 +270,23 @@ describe('runSync: races and failures', () => {
     expect(phone.unsynced()).toEqual([DAY]);
   });
 });
+
+describe('runSync: repo checks', () => {
+  it('runs onRepoVerified only once the repo is reachable and writable', async () => {
+    const { repo, phone } = setup();
+    let verified = 0;
+    const onRepoVerified = async () => {
+      verified += 1;
+    };
+    repo.info.canPush = false;
+    await expect(runSync(phone, repo.client(), { onRepoVerified })).rejects.toMatchObject({ kind: 'read-only' });
+    repo.failWith = new SyncError('not-found', 404);
+    await expect(runSync(phone, repo.client(), { onRepoVerified })).rejects.toMatchObject({ kind: 'not-found' });
+    expect(verified).toBe(0);
+
+    repo.failWith = null;
+    repo.info.canPush = true;
+    await runSync(phone, repo.client(), { onRepoVerified });
+    expect(verified).toBe(1);
+  });
+});

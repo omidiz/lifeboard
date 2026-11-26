@@ -25,6 +25,8 @@ export interface SyncOptions {
   now?: () => string;
   /** Called as soon as a local file changes because of a remote change. */
   onLocalChange?: (path: string) => void;
+  /** Runs once the repo is known to exist and be writable, before any file is touched. */
+  onRepoVerified?: () => Promise<void>;
 }
 
 async function eachLimited<T>(items: readonly T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
@@ -42,6 +44,7 @@ export async function runSync(store: SyncStore, client: RepoClient, options: Syn
 
   const repo = await client.getRepo();
   if (!repo.canPush) throw new SyncError('read-only');
+  await options.onRepoVerified?.();
 
   /** Downloads a file and applies it locally. Returns false if it doesn't exist (anymore). */
   async function pull(path: string): Promise<boolean> {

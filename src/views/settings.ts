@@ -13,6 +13,7 @@ import {
 import type { Habit, HabitsFile } from '../logic/model';
 import { routeHash } from '../logic/routes';
 import { escapeHtml } from './html';
+import { createSyncSettings } from './syncSettings';
 import type { View } from './view';
 
 const TEXT_SAVE_DELAY_MS = 400;
@@ -49,11 +50,15 @@ export function createSettingsView(): View {
       </span>
       <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
     </a>
+    <div data-sync-settings></div>
     <section class="card placeholder">
-      <p>GitHub sync, export and import will be set up here.</p>
+      <p>JSON export and import will be set up here.</p>
     </section>
     <p class="save-status" aria-live="polite" data-status></p>
   `;
+
+  const syncSettings = createSyncSettings();
+  el.querySelector('[data-sync-settings]')!.replaceWith(syncSettings.el);
 
   const list = el.querySelector<HTMLUListElement>('[data-habit-editors]')!;
   const addForm = el.querySelector<HTMLFormElement>('[data-add-habit]')!;
@@ -260,6 +265,7 @@ export function createSettingsView(): View {
     el,
     destroy() {
       flushAllText();
+      syncSettings.destroy?.();
       destroyed = true;
       window.clearTimeout(statusTimer);
       deleteTimers.forEach((t) => window.clearTimeout(t));

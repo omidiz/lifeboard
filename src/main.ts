@@ -1,4 +1,5 @@
 import './style.css';
+import { remoteChanges } from './data/changes';
 import { initFocusTimer } from './focus/timer';
 import { todayKey } from './logic/dates';
 import { parseRoute, parseRouteParam, routeHash, TAB_ROUTES, type Route } from './logic/routes';
@@ -6,8 +7,10 @@ import { renderPlaceholder, VIEWS } from './views/placeholders';
 import { createFocusView } from './views/focus';
 import { createProjectsView } from './views/projects';
 import { createSettingsView } from './views/settings';
+import { createSyncIndicator } from './views/syncIndicator';
 import { createTodayView } from './views/today';
 import type { View } from './views/view';
+import { initSync } from './sync/sync';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -23,6 +26,8 @@ app.innerHTML = `
     ).join('')}
   </nav>
 `;
+
+app.prepend(createSyncIndicator());
 
 const viewEl = app.querySelector<HTMLElement>('#view')!;
 const tabs = app.querySelectorAll<HTMLAnchorElement>('.tab');
@@ -69,4 +74,37 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && todayKey() !== renderedOn) show();
 });
 
+// Sync brought in changes from another device: reload the screen, but never
+// while typing (that would lose the cursor); then wait until the field is left.
+let refreshPending = false;
+const isTyping = () => {
+  const active = document.activeElement;
+  return (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) && viewEl.contains(active);
+};
+function refreshAfterSync(): void {
+  if (isTyping()) refreshPending = true;
+  else show();
+}
+let refreshQueued = false;
+remoteChanges.on(() => {
+  // Several files can arrive in one sync: refresh once.
+  if (refreshQueued) return;
+  refreshQueued = true;
+  queueMicrotask(() => {
+    refreshQueued = false;
+    refreshAfterSync();
+  });
+});
+viewEl.addEventListener('focusout', () => {
+  if (!refreshPending) return;
+  // Wait for focus to land, so moving between fields doesn't trigger a refresh.
+  window.setTimeout(() => {
+    if (refreshPending && !isTyping()) {
+      refreshPending = false;
+      show();
+    }
+  }, 0);
+});
+
 show();
+initSync();

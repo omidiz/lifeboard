@@ -43,8 +43,13 @@ export function configProblem(config: Partial<SyncConfig>): string | null {
   if (!isValidOwner(config.owner)) return 'That doesn’t look like a GitHub username.';
   if (!config.repo) return 'Add the repo name.';
   if (!isValidRepo(config.repo)) return 'That doesn’t look like a repo name.';
-  if (!config.token) return 'Add your token.';
-  if (!isValidToken(config.token)) return 'That doesn’t look like a GitHub token. Copy it again from GitHub.';
+  return tokenProblem(config.token ?? '');
+}
+
+/** A problem with the token, phrased for the user (never repeating it); null when it looks right. */
+export function tokenProblem(token: string): string | null {
+  if (!token) return 'Add your token.';
+  if (!isValidToken(token)) return 'That doesn’t look like a GitHub token. Copy it again from GitHub.';
   return null;
 }
 
