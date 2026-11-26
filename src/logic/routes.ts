@@ -1,5 +1,10 @@
-export const ROUTES = ['today', 'focus', 'stats', 'garden', 'settings'] as const;
+/** Screens in the bottom navigation, in order. */
+export const TAB_ROUTES = ['today', 'focus', 'stats', 'garden', 'settings'] as const;
+/** Screens reached by links rather than the bottom navigation. */
+export const PAGE_ROUTES = ['projects'] as const;
+export const ROUTES = [...TAB_ROUTES, ...PAGE_ROUTES] as const;
 
+export type TabRoute = (typeof TAB_ROUTES)[number];
 export type Route = (typeof ROUTES)[number];
 
 export const DEFAULT_ROUTE: Route = 'today';
@@ -14,8 +19,8 @@ export function parseRoute(hash: string): Route {
   return isRoute(name) ? name : DEFAULT_ROUTE;
 }
 
-export function routeHash(route: Route): string {
-  return `#/${route}`;
+export function routeHash(route: Route, param?: string): string {
+  return param ? `#/${route}/${encodeURIComponent(param)}` : `#/${route}`;
 }
 
 /** The segment after the route name, e.g. "2026-11-25" in "#/today/2026-11-25". */
