@@ -66,3 +66,10 @@ export function applyNote(day: DayRecord, note: string, now: string): DayRecord 
   if (clean === day.note) return day;
   return { ...day, note: clean, noteUpdatedAt: now, updatedAt: now };
 }
+
+/** Ticks or unticks a habit on this day. */
+export function toggleHabitTick(day: DayRecord, habitId: string, now: string): DayRecord {
+  const ticked = day.habitTicks.includes(habitId);
+  const habitTicks = ticked ? day.habitTicks.filter((id) => id !== habitId) : [...day.habitTicks, habitId];
+  return { ...day, habitTicks, updatedAt: now };
+}

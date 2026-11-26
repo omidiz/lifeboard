@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyCheckIn, applyNote, checkInDefaults, emptyDay, NOTE_MAX_LENGTH } from './day';
+import { applyCheckIn, applyNote, checkInDefaults, emptyDay, NOTE_MAX_LENGTH, toggleHabitTick } from './day';
 import type { CheckIn } from './model';
 
 const T0 = '2026-11-26T07:00:00.000Z';
@@ -61,5 +61,15 @@ describe('applyNote', () => {
   it('returns the same record when nothing changed', () => {
     const day = emptyDay('2026-11-26', T0);
     expect(applyNote(day, '', T1)).toBe(day);
+  });
+});
+
+describe('toggleHabitTick', () => {
+  it('ticks and unticks', () => {
+    const day = emptyDay('2026-11-26', T0);
+    const ticked = toggleHabitTick(day, 'a', T1);
+    expect(ticked.habitTicks).toEqual(['a']);
+    expect(toggleHabitTick(ticked, 'a', T1).habitTicks).toEqual([]);
+    expect(day.habitTicks).toEqual([]); // not mutated
   });
 });

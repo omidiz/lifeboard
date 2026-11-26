@@ -52,14 +52,29 @@ export interface DayRecord {
   updatedAt: string;
 }
 
+/** A weekly target that applies from a given week onwards. */
+export interface TargetChange {
+  /** Monday of the first week this target applies to. */
+  weekStart: DateKey;
+  /** Days per week (1–7). */
+  target: number;
+}
+
 export interface Habit {
   id: string;
   name: string;
   emoji: string;
-  /** How many days per week the habit should be done (1–7). */
+  /** Current target: how many days per week the habit should be done (1–7). */
   targetPerWeek: number;
+  /**
+   * Every target the habit has had, oldest first. Past weeks are judged by
+   * the target that applied then, so editing a target never rewrites history.
+   */
+  targetHistory: TargetChange[];
+  /** Local date the habit was created. */
+  createdOn: DateKey;
   createdAt: string;
-  archived: boolean;
+  updatedAt: string;
 }
 
 export interface HabitsFile {
